@@ -123,6 +123,18 @@ export async function connectInjectedWallet(): Promise<Address> {
   return account
 }
 
+async function getSafeFeeValues() {
+  const fees = await publicClient.estimateFeesPerGas({ type: 'eip1559' })
+  const maxPriorityFeePerGas = fees.maxPriorityFeePerGas > 0n ? fees.maxPriorityFeePerGas : 1n
+  const estimatedMaxFee = fees.maxFeePerGas > 0n ? fees.maxFeePerGas : maxPriorityFeePerGas
+  const maxFeePerGas = estimatedMaxFee + estimatedMaxFee / 5n
+
+  return {
+    maxFeePerGas: maxFeePerGas >= maxPriorityFeePerGas ? maxFeePerGas : maxPriorityFeePerGas,
+    maxPriorityFeePerGas,
+  }
+}
+
 export async function registerReceipt(
   account: Address,
   operationId: Hex,
@@ -138,12 +150,16 @@ export async function registerReceipt(
     transport: custom(window.ethereum),
   })
 
+  const { maxFeePerGas, maxPriorityFeePerGas } = await getSafeFeeValues()
+
   const { request } = await publicClient.simulateContract({
     account,
     address: REGISTRY_ADDRESS,
     abi: registryAbi,
     functionName: 'registerReceipt',
     args: [operationId, artifactHash],
+    maxFeePerGas,
+    maxPriorityFeePerGas,
   })
 
   return walletClient.writeContract(request)

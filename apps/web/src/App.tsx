@@ -1,14 +1,16 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Address, Hex } from 'viem'
 import './App.css'
 import {
   EXPLORER_URL,
   REGISTRY_ADDRESS,
+  buildAgentProofPayload,
   compactAddress,
   connectInjectedWallet,
   hashFile,
   hashText,
   isExecutorAddress,
+  isMiniPayWallet,
   operationIdFromLabel,
   readReceipt,
   readableError,
@@ -23,28 +25,70 @@ type Notice = { tone: 'success' | 'error' | 'info'; message: string } | null
 function App() {
   const [view, setView] = useState<View>('create')
   const [account, setAccount] = useState<Address | null>(null)
-  const [operationLabel, setOperationLabel] = useState('portfolio-build-v1')
-  const [artifactText, setArtifactText] = useState('')
+  const [miniPay] = useState(() => isMiniPayWallet())
+  const [operationLabel, setOperationLabel] = useState('agent-proof-001')
+  const [task, setTask] = useState('Build and validate the Proof of Activity MiniPay MVP')
+  const [agentName, setAgentName] = useState('OsaTechGPT Builder Agent')
+  const [acceptanceCriteria, setAcceptanceCriteria] = useState(
+    'Wallet connects, receipt is registered on Celo Sepolia, and the proof can be read back publicly.',
+  )
+  const [resultText, setResultText] = useState('')
   const [fileName, setFileName] = useState('')
   const [fileHash, setFileHash] = useState<Hex | null>(null)
   const [transactionHash, setTransactionHash] = useState<Hex | null>(null)
   const [verifyExecutor, setVerifyExecutor] = useState('')
-  const [verifyLabel, setVerifyLabel] = useState('portfolio-build-v1')
+  const [verifyLabel, setVerifyLabel] = useState('agent-proof-001')
   const [verifiedReceipt, setVerifiedReceipt] = useState<ReceiptRecord | null>(null)
   const [notice, setNotice] = useState<Notice>(null)
   const [busy, setBusy] = useState(false)
+  const miniPayAutoConnectStarted = useRef(false)
 
+  useEffect(() => {
+    if (!miniPay || miniPayAutoConnectStarted.current) return
+
+    miniPayAutoConnectStarted.current = true
+
+    void connectInjectedWallet()
+      .then((connectedAccount) => {
+        setAccount(connectedAccount)
+        setVerifyExecutor(connectedAccount)
+        setNotice({ tone: 'success', message: 'MiniPay connected on Celo Sepolia.' })
+      })
+      .catch((error: unknown) => {
+        miniPayAutoConnectStarted.current = false
+        setNotice({ tone: 'error', message: readableError(error) })
+      })
+  }, [miniPay])
   const operationId = useMemo(
     () => (operationLabel.trim() ? operationIdFromLabel(operationLabel) : null),
     [operationLabel],
   )
 
-  const textArtifactHash = useMemo(
-    () => (artifactText.trim() ? hashText(artifactText) : null),
-    [artifactText],
-  )
+  const proofPayload = useMemo(() => {
+    const hasRequiredFields =
+      operationLabel.trim() &&
+      task.trim() &&
+      agentName.trim() &&
+      acceptanceCriteria.trim() &&
+      (resultText.trim() || fileHash)
 
-  const artifactHash = fileHash ?? textArtifactHash
+    if (!hasRequiredFields) return null
+
+    return buildAgentProofPayload({
+      operationLabel,
+      task,
+      agentName,
+      acceptanceCriteria,
+      result: resultText,
+      fileName: fileName || null,
+      fileHash,
+    })
+  }, [acceptanceCriteria, agentName, fileHash, fileName, operationLabel, resultText, task])
+
+  const artifactHash = useMemo(
+    () => (proofPayload ? hashText(proofPayload) : null),
+    [proofPayload],
+  )
 
   async function handleConnect() {
     setNotice({ tone: 'info', message: 'Waiting for wallet approval…' })
@@ -53,7 +97,10 @@ function App() {
       const connectedAccount = await connectInjectedWallet()
       setAccount(connectedAccount)
       setVerifyExecutor(connectedAccount)
-      setNotice({ tone: 'success', message: 'Wallet connected to Celo Sepolia.' })
+      setNotice({
+        tone: 'success',
+        message: `${isMiniPayWallet() ? 'MiniPay' : 'Wallet'} connected to Celo Sepolia.`,
+      })
       return connectedAccount
     } catch (error) {
       setNotice({ tone: 'error', message: readableError(error) })
@@ -72,7 +119,7 @@ function App() {
       setFileHash(digest)
       setNotice({
         tone: 'success',
-        message: 'File hashed in your browser. Its contents are not uploaded.',
+        message: 'Evidence file hashed locally. Its contents were not uploaded.',
       })
     } catch (error) {
       setNotice({ tone: 'error', message: readableError(error) })
@@ -94,8 +141,18 @@ function App() {
       return
     }
 
+    if (!task.trim() || !agentName.trim() || !acceptanceCriteria.trim()) {
+      setNotice({ tone: 'error', message: 'Complete the task, agent, and acceptance criteria fields.' })
+      return
+    }
+
+    if (!resultText.trim() && !fileHash) {
+      setNotice({ tone: 'error', message: 'Add an execution result or evidence file.' })
+      return
+    }
+
     if (!artifactHash) {
-      setNotice({ tone: 'error', message: 'Add artifact text or choose a file.' })
+      setNotice({ tone: 'error', message: 'The agent proof payload could not be generated.' })
       return
     }
 
@@ -103,7 +160,7 @@ function App() {
     if (!activeAccount) return
 
     setBusy(true)
-    setNotice({ tone: 'info', message: 'Confirm the transaction in your wallet…' })
+    setNotice({ tone: 'info', message: 'Confirm the agent proof transaction in your wallet…' })
 
     try {
       const hash = await registerReceipt(activeAccount, operationId, artifactHash)
@@ -114,7 +171,7 @@ function App() {
       setVerifyLabel(operationLabel)
       setNotice({
         tone: 'success',
-        message: 'Proof registered on Celo Sepolia. The receipt is publicly verifiable.',
+        message: 'Agent execution proof registered on Celo Sepolia.',
       })
     } catch (error) {
       setNotice({ tone: 'error', message: readableError(error) })
@@ -138,7 +195,7 @@ function App() {
     }
 
     setBusy(true)
-    setNotice({ tone: 'info', message: 'Reading the public receipt from Celo Sepolia…' })
+    setNotice({ tone: 'info', message: 'Reading the public agent receipt from Celo Sepolia…' })
 
     try {
       const receipt = await readReceipt(verifyExecutor, operationIdFromLabel(verifyLabel))
@@ -149,7 +206,7 @@ function App() {
       }
 
       setVerifiedReceipt(receipt)
-      setNotice({ tone: 'success', message: 'Receipt found and decoded from the registry.' })
+      setNotice({ tone: 'success', message: 'Agent receipt found and decoded from the registry.' })
     } catch (error) {
       setNotice({ tone: 'error', message: readableError(error) })
     } finally {
@@ -169,41 +226,45 @@ function App() {
           <span className="brand-mark">OA</span>
           <span>
             <strong>Proof of Activity</strong>
-            <small>Verifiable execution receipts</small>
+            <small>Agent execution receipts</small>
           </span>
         </a>
 
         <div className="network-cluster">
           <span className="network-pill">
-            <span className="network-dot" /> Celo Sepolia
+            <span className="network-dot" /> {miniPay ? 'MiniPay · Celo Sepolia' : 'Celo Sepolia'}
           </span>
-          <button className="wallet-button" type="button" onClick={handleConnect}>
-            {account ? compactAddress(account) : 'Connect wallet'}
-          </button>
+          {miniPay ? (
+            account && <span className="network-pill">{compactAddress(account)}</span>
+          ) : (
+            <button className="wallet-button" type="button" onClick={handleConnect}>
+              {account ? compactAddress(account) : 'Connect wallet'}
+            </button>
+          )}
         </div>
       </header>
 
       <section className="hero-section" id="top">
-        <div className="eyebrow">TASK → ARTIFACT → HASH → RECEIPT</div>
-        <h1>Turn digital work into a public, verifiable receipt.</h1>
+        <div className="eyebrow">TASK → AGENT → CRITERIA → RESULT → RECEIPT</div>
+        <h1>Make AI agent work independently verifiable.</h1>
         <p>
-          Hash an artifact locally, register its proof on Celo, and let anyone verify the
-          executor, timestamp, status, and artifact fingerprint.
+          Define the task, agent, acceptance criteria, and result. The app hashes the complete
+          execution record locally and registers a public receipt on Celo.
         </p>
         <div className="proof-path" aria-label="Proof flow">
-          <span>01 Create</span>
+          <span>01 Define</span>
           <i />
-          <span>02 Sign</span>
+          <span>02 Execute</span>
           <i />
-          <span>03 Verify</span>
+          <span>03 Prove</span>
         </div>
       </section>
 
       <section className="workspace">
         <div className="workspace-heading">
           <div>
-            <span className="section-kicker">LIVE TESTNET MVP</span>
-            <h2>Receipt Console</h2>
+            <span className="section-kicker">MINIPAY-READY TESTNET MVP</span>
+            <h2>Agent Proof Console</h2>
           </div>
           <div className="view-tabs" role="tablist" aria-label="Receipt actions">
             <button
@@ -216,7 +277,7 @@ function App() {
                 setNotice(null)
               }}
             >
-              Create proof
+              Create agent proof
             </button>
             <button
               className={view === 'verify' ? 'active' : ''}
@@ -243,24 +304,53 @@ function App() {
                 id="operation-label"
                 value={operationLabel}
                 onChange={(event) => setOperationLabel(event.target.value)}
-                placeholder="portfolio-build-v1"
+                placeholder="agent-proof-001"
               />
               <p className="field-help">
-                A readable label converted deterministically into a bytes32 operation ID.
+                Unique label for this execution. The same wallet cannot reuse it.
               </p>
 
-              <label className="field-label" htmlFor="artifact-text">
-                Artifact content
+              <label className="field-label" htmlFor="task">
+                Task
               </label>
               <textarea
-                id="artifact-text"
-                value={artifactText}
-                onChange={(event) => setArtifactText(event.target.value)}
-                placeholder="Paste a build summary, document content, output manifest, or other evidence…"
-                disabled={Boolean(fileHash)}
+                id="task"
+                value={task}
+                onChange={(event) => setTask(event.target.value)}
+                placeholder="What was the agent asked to accomplish?"
               />
 
-              <div className="divider"><span>OR</span></div>
+              <label className="field-label" htmlFor="agent-name">
+                Agent / model
+              </label>
+              <input
+                id="agent-name"
+                value={agentName}
+                onChange={(event) => setAgentName(event.target.value)}
+                placeholder="OsaTechGPT Builder Agent"
+              />
+
+              <label className="field-label" htmlFor="acceptance-criteria">
+                Acceptance criteria
+              </label>
+              <textarea
+                id="acceptance-criteria"
+                value={acceptanceCriteria}
+                onChange={(event) => setAcceptanceCriteria(event.target.value)}
+                placeholder="What conditions define successful execution?"
+              />
+
+              <label className="field-label" htmlFor="result-text">
+                Execution result
+              </label>
+              <textarea
+                id="result-text"
+                value={resultText}
+                onChange={(event) => setResultText(event.target.value)}
+                placeholder="Summarize the result, output, validation, or evidence…"
+              />
+
+              <div className="divider"><span>OPTIONAL EVIDENCE FILE</span></div>
 
               <label className={`file-drop ${fileHash ? 'has-file' : ''}`}>
                 <input
@@ -269,9 +359,9 @@ function App() {
                 />
                 <span className="file-icon">↥</span>
                 <span>
-                  <strong>{fileName || 'Choose an artifact file'}</strong>
+                  <strong>{fileName || 'Choose an evidence file'}</strong>
                   <small>
-                    {fileHash ? 'File hash ready' : 'Hashed locally — file contents stay on your device'}
+                    {fileHash ? 'File fingerprint included in proof' : 'Hashed locally — never uploaded'}
                   </small>
                 </span>
                 {fileHash && (
@@ -287,28 +377,40 @@ function App() {
                 onClick={handleCreateProof}
                 disabled={busy}
               >
-                {busy ? 'Processing…' : account ? 'Create on-chain proof' : 'Connect & create proof'}
+                {busy
+                  ? 'Processing…'
+                  : account
+                    ? 'Create agent execution proof'
+                    : 'Connect & create agent proof'}
                 <span>→</span>
               </button>
             </div>
 
             <aside className="receipt-preview">
               <div className="preview-header">
-                <span>RECEIPT PREVIEW</span>
+                <span>AGENT RECEIPT PREVIEW</span>
                 <span className="status-chip">UNSIGNED</span>
               </div>
               <dl>
                 <div>
                   <dt>Executor</dt>
-                  <dd>{account ?? 'Connect wallet'}</dd>
+                  <dd>{account ?? (miniPay ? 'Connecting MiniPay…' : 'Connect wallet')}</dd>
+                </div>
+                <div>
+                  <dt>Agent</dt>
+                  <dd>{agentName || 'Waiting for agent'}</dd>
+                </div>
+                <div>
+                  <dt>Task</dt>
+                  <dd>{task || 'Waiting for task'}</dd>
                 </div>
                 <div>
                   <dt>Operation ID</dt>
                   <dd>{operationId ?? 'Waiting for label'}</dd>
                 </div>
                 <div>
-                  <dt>Artifact hash</dt>
-                  <dd>{artifactHash ?? 'Waiting for artifact'}</dd>
+                  <dt>Execution hash</dt>
+                  <dd>{artifactHash ?? 'Complete the execution record'}</dd>
                 </div>
                 <div>
                   <dt>Registry</dt>
@@ -316,8 +418,8 @@ function App() {
                 </div>
               </dl>
               <p className="privacy-note">
-                Only hashes and public receipt metadata go on-chain. Artifact contents remain
-                outside the registry.
+                The task, criteria, result, and optional file fingerprint are combined into one
+                deterministic payload. Only its hash and public receipt metadata go on-chain.
               </p>
             </aside>
           </div>
@@ -341,10 +443,10 @@ function App() {
                 id="verify-label"
                 value={verifyLabel}
                 onChange={(event) => setVerifyLabel(event.target.value)}
-                placeholder="portfolio-build-v1"
+                placeholder="agent-proof-001"
               />
               <p className="field-help">
-                Enter the exact original label. The app reconstructs the operation ID locally.
+                Enter the exact original label to reconstruct the operation ID.
               </p>
 
               <button
@@ -353,7 +455,7 @@ function App() {
                 onClick={handleVerifyProof}
                 disabled={busy}
               >
-                {busy ? 'Reading registry…' : 'Verify public receipt'}
+                {busy ? 'Reading registry…' : 'Verify public agent receipt'}
                 <span>⌕</span>
               </button>
             </div>
@@ -378,7 +480,7 @@ function App() {
                       </dd>
                     </div>
                     <div>
-                      <dt>Artifact hash</dt>
+                      <dt>Execution hash</dt>
                       <dd>
                         {verifiedReceipt.artifactHash}
                         <button type="button" onClick={() => copyValue(verifiedReceipt.artifactHash)}>
@@ -408,7 +510,7 @@ function App() {
                 <div className="empty-result">
                   <span>◇</span>
                   <strong>No query executed</strong>
-                  <p>Provide the executor and operation label to read the on-chain receipt.</p>
+                  <p>Provide the executor and operation label to read the on-chain agent receipt.</p>
                 </div>
               )}
             </aside>
@@ -419,7 +521,7 @@ function App() {
 
         {transactionHash && (
           <div className="transaction-row">
-            <span>Transaction confirmed</span>
+            <span>Agent proof confirmed</span>
             <a
               href={`${EXPLORER_URL}/tx/${transactionHash}`}
               target="_blank"
@@ -441,7 +543,7 @@ function App() {
       </section>
 
       <footer>
-        <span>Proof of Activity · Celo Sepolia</span>
+        <span>Proof of Activity for AI Agents · MiniPay-ready · Celo Sepolia</span>
         <a
           href={`${EXPLORER_URL}/address/${REGISTRY_ADDRESS}`}
           target="_blank"

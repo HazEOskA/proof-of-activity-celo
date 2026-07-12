@@ -4,39 +4,17 @@ import {
   createPublicClient,
   createWalletClient,
   custom,
-  defineChain,
   http,
   isAddress,
   keccak256,
   toBytes,
 } from 'viem'
 import type { Address, Hex } from 'viem'
+import { celoSepolia } from 'viem/chains'
 
-export const CELO_SEPOLIA_CHAIN_ID = 11_142_220
+export const CELO_SEPOLIA_CHAIN_ID = celoSepolia.id
 export const REGISTRY_ADDRESS = '0x60F5C6257984bFCF678802529451E30d424df9EE' as const
 export const EXPLORER_URL = 'https://celo-sepolia.blockscout.com'
-
-export const celoSepolia = defineChain({
-  id: CELO_SEPOLIA_CHAIN_ID,
-  name: 'Celo Sepolia',
-  nativeCurrency: {
-    name: 'CELO',
-    symbol: 'CELO',
-    decimals: 18,
-  },
-  rpcUrls: {
-    default: {
-      http: ['https://forno.celo-sepolia.celo-testnet.org/'],
-    },
-  },
-  blockExplorers: {
-    default: {
-      name: 'Celo Sepolia Blockscout',
-      url: EXPLORER_URL,
-    },
-  },
-  testnet: true,
-})
 
 export const registryAbi = [
   {
@@ -78,8 +56,42 @@ export const registryAbi = [
 
 export const publicClient = createPublicClient({
   chain: celoSepolia,
-  transport: http(celoSepolia.rpcUrls.default.http[0]),
+  transport: http('https://forno.celo-sepolia.celo-testnet.org/'),
 })
+
+type MiniPayProvider = NonNullable<typeof window.ethereum> & {
+  isMiniPay?: boolean
+}
+
+export type AgentProofPayload = {
+  schema: 'proof-of-activity-agent-v1'
+  operationLabel: string
+  task: string
+  agentName: string
+  acceptanceCriteria: string
+  result: string
+  fileName: string | null
+  fileHash: Hex | null
+}
+
+export function isMiniPayWallet(): boolean {
+  return Boolean((window.ethereum as MiniPayProvider | undefined)?.isMiniPay)
+}
+
+export function buildAgentProofPayload(input: Omit<AgentProofPayload, 'schema'>): string {
+  const payload: AgentProofPayload = {
+    schema: 'proof-of-activity-agent-v1',
+    operationLabel: input.operationLabel.trim(),
+    task: input.task.trim(),
+    agentName: input.agentName.trim(),
+    acceptanceCriteria: input.acceptanceCriteria.trim(),
+    result: input.result.trim(),
+    fileName: input.fileName?.trim() || null,
+    fileHash: input.fileHash,
+  }
+
+  return JSON.stringify(payload)
+}
 
 export function operationIdFromLabel(label: string): Hex {
   return keccak256(toBytes(label.trim()))
@@ -99,13 +111,26 @@ export function isExecutorAddress(value: string): value is Address {
 
 export async function connectInjectedWallet(): Promise<Address> {
   if (!window.ethereum) {
-    throw new Error('No browser wallet detected. Install MetaMask or another EIP-1193 wallet.')
+    throw new Error('No browser wallet detected. Open the app in MiniPay or install an EIP-1193 wallet.')
   }
 
   const walletClient = createWalletClient({
     chain: celoSepolia,
     transport: custom(window.ethereum),
   })
+
+  if (isMiniPayWallet()) {
+    const existingAccounts = await walletClient.getAddresses()
+    const [account] = existingAccounts.length > 0
+      ? existingAccounts
+      : await walletClient.requestAddresses()
+
+    if (!account) {
+      throw new Error('MiniPay did not return an account.')
+    }
+
+    return account
+  }
 
   const [account] = await walletClient.requestAddresses()
 
@@ -123,7 +148,7 @@ export async function connectInjectedWallet(): Promise<Address> {
   return account
 }
 
-async function getSafeFeeValues() {
+async function getSafeEip1559Fees() {
   const fees = await publicClient.estimateFeesPerGas({ type: 'eip1559' })
   const maxPriorityFeePerGas = fees.maxPriorityFeePerGas > 0n ? fees.maxPriorityFeePerGas : 1n
   const estimatedMaxFee = fees.maxFeePerGas > 0n ? fees.maxFeePerGas : maxPriorityFeePerGas
@@ -150,8 +175,21 @@ export async function registerReceipt(
     transport: custom(window.ethereum),
   })
 
-  const { maxFeePerGas, maxPriorityFeePerGas } = await getSafeFeeValues()
+  if (isMiniPayWallet()) {
+    const gasPrice = await publicClient.getGasPrice()
+    const { request } = await publicClient.simulateContract({
+      account,
+      address: REGISTRY_ADDRESS,
+      abi: registryAbi,
+      functionName: 'registerReceipt',
+      args: [operationId, artifactHash],
+      gasPrice,
+    })
 
+    return walletClient.writeContract(request)
+  }
+
+  const { maxFeePerGas, maxPriorityFeePerGas } = await getSafeEip1559Fees()
   const { request } = await publicClient.simulateContract({
     account,
     address: REGISTRY_ADDRESS,

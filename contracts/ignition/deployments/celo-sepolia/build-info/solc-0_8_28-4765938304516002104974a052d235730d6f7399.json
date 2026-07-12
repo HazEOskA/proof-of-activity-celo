@@ -1,0 +1,49 @@
+{
+  "_format": "hh3-sol-build-info-1",
+  "id": "solc-0_8_28-4765938304516002104974a052d235730d6f7399",
+  "solcVersion": "0.8.28",
+  "solcLongVersion": "0.8.28+commit.7893614a",
+  "compilerType": "solc",
+  "toolVersions": {
+    "hardhat": "3.9.1"
+  },
+  "userSourceNameMap": {
+    "contracts/OperationReceiptRegistry.sol": "project/contracts/OperationReceiptRegistry.sol"
+  },
+  "input": {
+    "language": "Solidity",
+    "settings": {
+      "evmVersion": "cancun",
+      "optimizer": {
+        "enabled": true,
+        "runs": 200
+      },
+      "outputSelection": {
+        "*": {
+          "": [
+            "ast"
+          ],
+          "*": [
+            "abi",
+            "evm.bytecode.linkReferences",
+            "evm.bytecode.object",
+            "evm.bytecode.opcodes",
+            "evm.bytecode.sourceMap",
+            "evm.deployedBytecode.immutableReferences",
+            "evm.deployedBytecode.linkReferences",
+            "evm.deployedBytecode.object",
+            "evm.deployedBytecode.opcodes",
+            "evm.deployedBytecode.sourceMap",
+            "evm.methodIdentifiers"
+          ]
+        }
+      },
+      "remappings": []
+    },
+    "sources": {
+      "project/contracts/OperationReceiptRegistry.sol": {
+        "content": "// SPDX-License-Identifier: MIT\r\npragma solidity ^0.8.28;\r\n\r\n/// @title OperationReceiptRegistry\r\n/// @notice Stores timestamped artifact-hash receipts for digital work.\r\n/// @dev Receipts are uniquely identified by executor address and operation ID.\r\ncontract OperationReceiptRegistry {\r\n    enum ReceiptStatus {\r\n        Active,\r\n        Revoked\r\n    }\r\n\r\n    struct Receipt {\r\n        bytes32 artifactHash;\r\n        address executor;\r\n        uint64 timestamp;\r\n        ReceiptStatus status;\r\n    }\r\n\r\n    mapping(address executor => mapping(bytes32 operationId => Receipt receipt))\r\n        private receipts;\r\n\r\n    error EmptyOperationId();\r\n    error EmptyArtifactHash();\r\n    error ReceiptAlreadyExists(address executor, bytes32 operationId);\r\n    error ReceiptNotFound(address executor, bytes32 operationId);\r\n    error ReceiptAlreadyRevoked(address executor, bytes32 operationId);\r\n\r\n    event ReceiptRegistered(\r\n        bytes32 indexed operationId,\r\n        bytes32 indexed artifactHash,\r\n        address indexed executor,\r\n        uint64 timestamp\r\n    );\r\n\r\n    event ReceiptRevoked(\r\n        bytes32 indexed operationId,\r\n        address indexed executor,\r\n        uint64 timestamp\r\n    );\r\n\r\n    function registerReceipt(\r\n        bytes32 operationId,\r\n        bytes32 artifactHash\r\n    ) external {\r\n        if (operationId == bytes32(0)) {\r\n            revert EmptyOperationId();\r\n        }\r\n\r\n        if (artifactHash == bytes32(0)) {\r\n            revert EmptyArtifactHash();\r\n        }\r\n\r\n        if (receipts[msg.sender][operationId].executor != address(0)) {\r\n            revert ReceiptAlreadyExists(msg.sender, operationId);\r\n        }\r\n\r\n        uint64 registeredAt = uint64(block.timestamp);\r\n\r\n        receipts[msg.sender][operationId] = Receipt({\r\n            artifactHash: artifactHash,\r\n            executor: msg.sender,\r\n            timestamp: registeredAt,\r\n            status: ReceiptStatus.Active\r\n        });\r\n\r\n        emit ReceiptRegistered(\r\n            operationId,\r\n            artifactHash,\r\n            msg.sender,\r\n            registeredAt\r\n        );\r\n    }\r\n\r\n    function revokeReceipt(bytes32 operationId) external {\r\n        Receipt storage receipt = receipts[msg.sender][operationId];\r\n\r\n        if (receipt.executor == address(0)) {\r\n            revert ReceiptNotFound(msg.sender, operationId);\r\n        }\r\n\r\n        if (receipt.status == ReceiptStatus.Revoked) {\r\n            revert ReceiptAlreadyRevoked(msg.sender, operationId);\r\n        }\r\n\r\n        receipt.status = ReceiptStatus.Revoked;\r\n\r\n        emit ReceiptRevoked(\r\n            operationId,\r\n            msg.sender,\r\n            uint64(block.timestamp)\r\n        );\r\n    }\r\n\r\n    function getReceipt(\r\n        address executor,\r\n        bytes32 operationId\r\n    )\r\n        external\r\n        view\r\n        returns (\r\n            bytes32 artifactHash,\r\n            address receiptExecutor,\r\n            uint64 timestamp,\r\n            ReceiptStatus status\r\n        )\r\n    {\r\n        Receipt memory receipt = receipts[executor][operationId];\r\n\r\n        if (receipt.executor == address(0)) {\r\n            revert ReceiptNotFound(executor, operationId);\r\n        }\r\n\r\n        return (\r\n            receipt.artifactHash,\r\n            receipt.executor,\r\n            receipt.timestamp,\r\n            receipt.status\r\n        );\r\n    }\r\n\r\n    function exists(\r\n        address executor,\r\n        bytes32 operationId\r\n    ) external view returns (bool) {\r\n        return receipts[executor][operationId].executor != address(0);\r\n    }\r\n}"
+      }
+    }
+  }
+}

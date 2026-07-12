@@ -1,5 +1,5 @@
 import hardhatToolboxViemPlugin from "@nomicfoundation/hardhat-toolbox-viem";
-import { defineConfig } from "hardhat/config";
+import { configVariable, defineConfig } from "hardhat/config";
 
 export default defineConfig({
   plugins: [hardhatToolboxViemPlugin],
@@ -25,6 +25,13 @@ export default defineConfig({
     hardhatMainnet: {
       type: "edr-simulated",
       chainType: "l1",
+    },
+    celoSepolia: {
+      type: "http",
+      chainType: "op",
+      url: "https://forno.celo-sepolia.celo-testnet.org/",
+      chainId: 11142220,
+      accounts: [configVariable("CELO_SEPOLIA_PRIVATE_KEY")],
     },
   },
 });

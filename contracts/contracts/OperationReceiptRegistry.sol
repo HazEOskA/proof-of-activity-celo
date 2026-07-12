@@ -3,7 +3,7 @@ pragma solidity ^0.8.28;
 
 /// @title OperationReceiptRegistry
 /// @notice Stores timestamped artifact-hash receipts for digital work.
-/// @dev A receipt proves registration by an address, not the quality of the work.
+/// @dev Receipts are uniquely identified by executor address and operation ID.
 contract OperationReceiptRegistry {
     enum ReceiptStatus {
         Active,
@@ -17,14 +17,14 @@ contract OperationReceiptRegistry {
         ReceiptStatus status;
     }
 
-    mapping(bytes32 operationId => Receipt receipt) private receipts;
+    mapping(address executor => mapping(bytes32 operationId => Receipt receipt))
+        private receipts;
 
     error EmptyOperationId();
     error EmptyArtifactHash();
-    error ReceiptAlreadyExists(bytes32 operationId);
-    error ReceiptNotFound(bytes32 operationId);
-    error NotReceiptExecutor(address caller, address executor);
-    error ReceiptAlreadyRevoked(bytes32 operationId);
+    error ReceiptAlreadyExists(address executor, bytes32 operationId);
+    error ReceiptNotFound(address executor, bytes32 operationId);
+    error ReceiptAlreadyRevoked(address executor, bytes32 operationId);
 
     event ReceiptRegistered(
         bytes32 indexed operationId,
@@ -51,13 +51,13 @@ contract OperationReceiptRegistry {
             revert EmptyArtifactHash();
         }
 
-        if (receipts[operationId].executor != address(0)) {
-            revert ReceiptAlreadyExists(operationId);
+        if (receipts[msg.sender][operationId].executor != address(0)) {
+            revert ReceiptAlreadyExists(msg.sender, operationId);
         }
 
         uint64 registeredAt = uint64(block.timestamp);
 
-        receipts[operationId] = Receipt({
+        receipts[msg.sender][operationId] = Receipt({
             artifactHash: artifactHash,
             executor: msg.sender,
             timestamp: registeredAt,
@@ -73,18 +73,14 @@ contract OperationReceiptRegistry {
     }
 
     function revokeReceipt(bytes32 operationId) external {
-        Receipt storage receipt = receipts[operationId];
+        Receipt storage receipt = receipts[msg.sender][operationId];
 
         if (receipt.executor == address(0)) {
-            revert ReceiptNotFound(operationId);
-        }
-
-        if (msg.sender != receipt.executor) {
-            revert NotReceiptExecutor(msg.sender, receipt.executor);
+            revert ReceiptNotFound(msg.sender, operationId);
         }
 
         if (receipt.status == ReceiptStatus.Revoked) {
-            revert ReceiptAlreadyRevoked(operationId);
+            revert ReceiptAlreadyRevoked(msg.sender, operationId);
         }
 
         receipt.status = ReceiptStatus.Revoked;
@@ -97,21 +93,22 @@ contract OperationReceiptRegistry {
     }
 
     function getReceipt(
+        address executor,
         bytes32 operationId
     )
         external
         view
         returns (
             bytes32 artifactHash,
-            address executor,
+            address receiptExecutor,
             uint64 timestamp,
             ReceiptStatus status
         )
     {
-        Receipt memory receipt = receipts[operationId];
+        Receipt memory receipt = receipts[executor][operationId];
 
         if (receipt.executor == address(0)) {
-            revert ReceiptNotFound(operationId);
+            revert ReceiptNotFound(executor, operationId);
         }
 
         return (
@@ -122,7 +119,10 @@ contract OperationReceiptRegistry {
         );
     }
 
-    function exists(bytes32 operationId) external view returns (bool) {
-        return receipts[operationId].executor != address(0);
+    function exists(
+        address executor,
+        bytes32 operationId
+    ) external view returns (bool) {
+        return receipts[executor][operationId].executor != address(0);
     }
 }

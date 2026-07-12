@@ -11,9 +11,8 @@ describe("OperationReceiptRegistry", async function () {
   const [executor, outsider] = await viem.getWalletClients();
 
   const operationId = keccak256(stringToHex("operation-001"));
-  const artifactHash = keccak256(
-    stringToHex("artifact-content-v1"),
-  );
+  const artifactHash = keccak256(stringToHex("artifact-content-v1"));
+  const secondArtifactHash = keccak256(stringToHex("artifact-content-v2"));
 
   async function deployRegistry() {
     return viem.deployContract("OperationReceiptRegistry");
@@ -21,12 +20,13 @@ describe("OperationReceiptRegistry", async function () {
 
   async function registerReceipt(
     registry: Awaited<ReturnType<typeof deployRegistry>>,
+    wallet: typeof executor,
+    hash = artifactHash,
   ) {
-    const transactionHash =
-      await registry.write.registerReceipt(
-        [operationId, artifactHash],
-        { account: executor.account },
-      );
+    const transactionHash = await registry.write.registerReceipt(
+      [operationId, hash],
+      { account: wallet.account },
+    );
 
     await publicClient.waitForTransactionReceipt({
       hash: transactionHash,
@@ -36,10 +36,12 @@ describe("OperationReceiptRegistry", async function () {
   it("registers and returns an active receipt", async function () {
     const registry = await deployRegistry();
 
-    await registerReceipt(registry);
+    await registerReceipt(registry, executor);
 
-    const receipt =
-      await registry.read.getReceipt([operationId]);
+    const receipt = await registry.read.getReceipt([
+      executor.account.address,
+      operationId,
+    ]);
 
     assert.equal(receipt[0], artifactHash);
     assert.equal(
@@ -49,22 +51,45 @@ describe("OperationReceiptRegistry", async function () {
     assert.ok(receipt[2] > 0n);
     assert.equal(receipt[3], 0);
     assert.equal(
-      await registry.read.exists([operationId]),
+      await registry.read.exists([
+        executor.account.address,
+        operationId,
+      ]),
       true,
     );
   });
 
-  it("rejects duplicate operation IDs", async function () {
+  it("rejects duplicate IDs inside one executor namespace", async function () {
     const registry = await deployRegistry();
 
-    await registerReceipt(registry);
+    await registerReceipt(registry, executor);
 
     await assert.rejects(async () => {
       await registry.write.registerReceipt(
-        [operationId, artifactHash],
+        [operationId, secondArtifactHash],
         { account: executor.account },
       );
     });
+  });
+
+  it("allows two executors to use the same operation ID", async function () {
+    const registry = await deployRegistry();
+
+    await registerReceipt(registry, executor, artifactHash);
+    await registerReceipt(registry, outsider, secondArtifactHash);
+
+    const firstReceipt = await registry.read.getReceipt([
+      executor.account.address,
+      operationId,
+    ]);
+
+    const secondReceipt = await registry.read.getReceipt([
+      outsider.account.address,
+      operationId,
+    ]);
+
+    assert.equal(firstReceipt[0], artifactHash);
+    assert.equal(secondReceipt[0], secondArtifactHash);
   });
 
   it("rejects empty IDs and empty artifact hashes", async function () {
@@ -85,10 +110,10 @@ describe("OperationReceiptRegistry", async function () {
     });
   });
 
-  it("blocks revocation by a different address", async function () {
+  it("does not let another executor revoke the receipt", async function () {
     const registry = await deployRegistry();
 
-    await registerReceipt(registry);
+    await registerReceipt(registry, executor);
 
     await assert.rejects(async () => {
       await registry.write.revokeReceipt(
@@ -96,25 +121,33 @@ describe("OperationReceiptRegistry", async function () {
         { account: outsider.account },
       );
     });
+
+    const receipt = await registry.read.getReceipt([
+      executor.account.address,
+      operationId,
+    ]);
+
+    assert.equal(receipt[3], 0);
   });
 
   it("allows the executor to revoke their receipt", async function () {
     const registry = await deployRegistry();
 
-    await registerReceipt(registry);
+    await registerReceipt(registry, executor);
 
-    const transactionHash =
-      await registry.write.revokeReceipt(
-        [operationId],
-        { account: executor.account },
-      );
+    const transactionHash = await registry.write.revokeReceipt(
+      [operationId],
+      { account: executor.account },
+    );
 
     await publicClient.waitForTransactionReceipt({
       hash: transactionHash,
     });
 
-    const receipt =
-      await registry.read.getReceipt([operationId]);
+    const receipt = await registry.read.getReceipt([
+      executor.account.address,
+      operationId,
+    ]);
 
     assert.equal(receipt[3], 1);
   });

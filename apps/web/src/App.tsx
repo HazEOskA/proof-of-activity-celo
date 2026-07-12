@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Address, Hex } from 'viem'
 import './App.css'
 import {
@@ -25,7 +25,7 @@ type Notice = { tone: 'success' | 'error' | 'info'; message: string } | null
 function App() {
   const [view, setView] = useState<View>('create')
   const [account, setAccount] = useState<Address | null>(null)
-  const [miniPay, setMiniPay] = useState(false)
+  const [miniPay] = useState(() => isMiniPayWallet())
   const [operationLabel, setOperationLabel] = useState('agent-proof-001')
   const [task, setTask] = useState('Build and validate the Proof of Activity MiniPay MVP')
   const [agentName, setAgentName] = useState('OsaTechGPT Builder Agent')
@@ -41,14 +41,13 @@ function App() {
   const [verifiedReceipt, setVerifiedReceipt] = useState<ReceiptRecord | null>(null)
   const [notice, setNotice] = useState<Notice>(null)
   const [busy, setBusy] = useState(false)
+  const miniPayAutoConnectStarted = useRef(false)
 
   useEffect(() => {
-    const detectedMiniPay = isMiniPayWallet()
-    setMiniPay(detectedMiniPay)
+    if (!miniPay || miniPayAutoConnectStarted.current) return
 
-    if (!detectedMiniPay) return
+    miniPayAutoConnectStarted.current = true
 
-    setNotice({ tone: 'info', message: 'MiniPay detected. Connecting the wallet automatically…' })
     void connectInjectedWallet()
       .then((connectedAccount) => {
         setAccount(connectedAccount)
@@ -56,10 +55,10 @@ function App() {
         setNotice({ tone: 'success', message: 'MiniPay connected on Celo Sepolia.' })
       })
       .catch((error: unknown) => {
+        miniPayAutoConnectStarted.current = false
         setNotice({ tone: 'error', message: readableError(error) })
       })
-  }, [])
-
+  }, [miniPay])
   const operationId = useMemo(
     () => (operationLabel.trim() ? operationIdFromLabel(operationLabel) : null),
     [operationLabel],

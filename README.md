@@ -4,30 +4,42 @@ Verifiable execution receipts for AI agents, builders and digital work.
 
 ## Core flow
 
-Task → Artifact → Hash → On-chain Receipt → Public Verification
+Task → Agent → Acceptance Criteria → Result → Hash → On-chain Receipt → Public Verification
+
+## Live deployment
+
+- Network: **Celo mainnet**
+- Chain ID: `42220`
+- Contract: `OperationReceiptRegistry`
+- Registry address: `0x23df5bd2abe4072ee63f93c4de817172eb9431df`
+- Explorer: `https://celoscan.io/address/0x23df5bd2abe4072ee63f93c4de817172eb9431df`
+- Production app: `https://proof-of-activity-celo-preview-42tho4ftn.vercel.app`
 
 ## What works
 
 - structured proof payloads for AI-agent and builder activity,
-- deterministic operation IDs and artifact hashes,
-- `OperationReceiptRegistry` smart contract,
-- receipt registration, lookup and revocation,
+- deterministic operation IDs and execution hashes,
+- optional local file hashing without uploading the evidence,
+- receipt registration on Celo mainnet,
+- public receipt lookup by executor and operation label,
+- active/revoked receipt status decoding,
 - MiniPay-compatible injected-wallet flow,
-- deployed and tested on Celo Sepolia,
-- Celo mainnet configuration and wallet-signed deployment screen prepared,
-- web lint and production build passing.
+- automatic Celo mainnet wallet switching for standard EVM wallets,
+- CeloScan transaction and contract links,
+- responsive production interface.
+
+## Privacy model
+
+Task descriptions, acceptance criteria, execution results and evidence files remain off-chain. The application writes only a deterministic execution hash and the public receipt metadata required for independent verification.
 
 ## Current status
 
-Implementation is complete on Celo Sepolia.
+Celo mainnet contract deployment: **complete**.
 
-Celo mainnet deployment is **prepared but not yet executed**. It requires one wallet confirmation from the funded deployer address:
+Production application deployment: **complete**.
 
-`0x410253a590aa8a82c3a9723e1200bc0197457802`
+Remaining submission validation:
 
-After confirmation, the remaining steps are:
-
-1. record the mainnet contract address and transaction hash,
-2. switch the production app from Celo Sepolia to Celo mainnet,
-3. execute one live proof transaction,
-4. publish the final production deployment and submit to Celo Proof of Ship.
+1. execute one live `registerReceipt` transaction from the production application,
+2. verify the resulting receipt through the public Verify Proof flow,
+3. submit the project to Celo Proof of Ship on Talent.

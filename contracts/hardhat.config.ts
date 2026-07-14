@@ -33,5 +33,12 @@ export default defineConfig({
       chainId: 11142220,
       accounts: [configVariable("CELO_SEPOLIA_PRIVATE_KEY")],
     },
+    celoMainnet: {
+      type: "http",
+      chainType: "op",
+      url: "https://forno.celo.org/",
+      chainId: 42220,
+      accounts: [configVariable("CELO_MAINNET_PRIVATE_KEY")],
+    },
   },
 });

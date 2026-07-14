@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#07090d" />
+  <meta name="description" content="Create and verify AI-agent execution receipts on Celo mainnet." />
+  <title>Proof of Activity — Celo Mainnet</title>
+  <style>
+    :root {
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #d9dfe7;
+      background: #07090d;
+      --mono: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+      --strong: #f5f7f2;
+      --text: #c1c8d2;
+      --muted: #89939f;
+      --dim: #606a76;
+      --border: rgba(255,255,255,.11);
+      --soft: rgba(255,255,255,.07);
+      --green: #aeff5b;
+      --yellow: #ffe34f;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      min-height: 100vh;
+      background: radial-gradient(circle at 50% -15%, rgba(174,255,91,.13), transparent 34%), #07090d;
+    }
+    button, input, textarea { font: inherit; }
+    button { color: inherit; }
+    .shell { width: min(1160px, calc(100% - 28px)); margin: 0 auto; padding: 14px 0 28px; }
+    .topbar {
+      position: sticky; top: 10px; z-index: 10;
+      display: flex; align-items: center; justify-content: space-between; gap: 14px;
+      padding: 13px 15px; border: 1px solid var(--border); border-radius: 18px;
+      background: rgba(10,13,18,.88); backdrop-filter: blur(18px);
+      box-shadow: 0 18px 55px rgba(0,0,0,.28);
+    }
+    .brand { display: flex; align-items: center; gap: 11px; }
+    .mark {
+      display: grid; width: 42px; height: 42px; place-items: center;
+      border-radius: 13px; color: #111; background: linear-gradient(145deg, var(--yellow), var(--green));
+      font: 900 13px var(--mono);
+    }
+    .brand strong, .brand small { display: block; }
+    .brand small { margin-top: 2px; color: var(--muted); font-size: 11px; }
+    .network { display: flex; align-items: center; gap: 9px; }
+    .chain, .wallet {
+      min-height: 40px; padding: 0 13px; border: 1px solid var(--border); border-radius: 12px;
+      background: rgba(255,255,255,.025); font: 12px var(--mono);
+    }
+    .chain { display: flex; align-items: center; color: var(--muted); }
+    .chain i { width: 7px; height: 7px; margin-right: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 12px var(--green); }
+    .wallet { color: var(--yellow); border-color: rgba(255,227,79,.36); cursor: pointer; }
+    .hero {
+      padding: 100px 20px 72px; text-align: center;
+      background: linear-gradient(rgba(255,255,255,.02) 1px, transparent 1px), linear-gradient(90deg,rgba(255,255,255,.02) 1px, transparent 1px);
+      background-size: 34px 34px; mask-image: linear-gradient(to bottom,#000 82%,transparent);
+    }
+    .eyebrow, .kicker { color: var(--green); font: 800 11px var(--mono); letter-spacing: .17em; }
+    .hero h1 { max-width: 850px; margin: 22px auto 18px; color: var(--strong); font-size: clamp(44px,7vw,84px); line-height: .97; letter-spacing: -.06em; }
+    .hero p { max-width: 710px; margin: auto; color: var(--text); font-size: 18px; line-height: 1.65; }
+    .workspace {
+      overflow: hidden; border: 1px solid var(--border); border-radius: 24px;
+      background: linear-gradient(180deg,rgba(18,22,29,.98),rgba(10,13,18,.98));
+      box-shadow: 0 30px 90px rgba(0,0,0,.34);
+    }
+    .workspace-head { display: flex; align-items: end; justify-content: space-between; gap: 18px; padding: 24px; border-bottom: 1px solid var(--border); }
+    .workspace-head h2 { margin: 7px 0 0; color: var(--strong); }
+    .tabs { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--border); border-radius: 13px; }
+    .tabs button { min-height: 38px; padding: 0 14px; border: 0; border-radius: 9px; color: var(--muted); background: transparent; font: 700 12px var(--mono); cursor: pointer; }
+    .tabs button.active { color: #111; background: var(--yellow); }
+    .grid { display: grid; grid-template-columns: 1.08fr .92fr; }
+    .form-panel, .preview { min-width: 0; padding: 28px; }
+    .form-panel { border-right: 1px solid var(--border); }
+    label { display: block; margin: 22px 0 8px; color: var(--strong); font: 800 12px var(--mono); }
+    label:first-child { margin-top: 0; }
+    input, textarea { width: 100%; border: 1px solid var(--border); border-radius: 13px; color: var(--strong); background: rgba(255,255,255,.025); outline: none; font: 14px/1.5 var(--mono); }
+    input { height: 48px; padding: 0 14px; }
+    textarea { min-height: 110px; padding: 13px; resize: vertical; }
+    input:focus, textarea:focus { border-color: rgba(174,255,91,.65); box-shadow: 0 0 0 3px rgba(174,255,91,.08); }
+    .help { margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .file-box { position: relative; display: flex; align-items: center; gap: 12px; min-height: 72px; padding: 12px 14px; border: 1px dashed rgba(255,255,255,.2); border-radius: 14px; cursor: pointer; }
+    .file-box input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+    .file-box b, .file-box small { display: block; }
+    .file-box small { margin-top: 3px; color: var(--muted); }
+    .file-icon { color: var(--green); font-size: 20px; }
+    .primary { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 54px; margin-top: 24px; padding: 0 18px; border: 0; border-radius: 14px; color: #111; background: linear-gradient(90deg,var(--yellow),var(--green)); font: 900 13px var(--mono); cursor: pointer; }
+    .primary:disabled { opacity: .55; cursor: wait; }
+    .preview { background: linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px); background-size: 22px 22px; }
+    .preview-head { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 18px; color: var(--muted); font: 10px var(--mono); letter-spacing: .11em; }
+    .status { padding: 6px 8px; border: 1px solid var(--border); border-radius: 99px; color: var(--yellow); }
+    dl { margin: 0; }
+    dl div { padding: 14px 0; border-bottom: 1px solid var(--soft); }
+    dt { margin-bottom: 6px; color: var(--dim); font: 10px var(--mono); text-transform: uppercase; }
+    dd { overflow-wrap: anywhere; margin: 0; color: var(--strong); font: 12px/1.55 var(--mono); }
+    .privacy { margin-top: 20px; padding: 13px; border: 1px solid rgba(92,181,255,.16); border-radius: 12px; color: #9cb4c7; background: rgba(92,181,255,.04); font-size: 11px; line-height: 1.55; }
+    .empty { display: grid; min-height: 290px; place-content: center; text-align: center; }
+    .empty span { color: var(--green); font-size: 44px; }
+    .empty b { margin-top: 9px; color: var(--strong); }
+    .empty p { max-width: 290px; color: var(--muted); font-size: 12px; }
+    .explorer { display: inline-flex; margin-top: 20px; color: var(--yellow); font: 11px var(--mono); text-decoration: none; }
+    .notice { margin: 0 24px 24px; padding: 13px 15px; border: 1px solid var(--border); border-radius: 12px; font: 12px/1.5 var(--mono); }
+    .notice.info { color: #b5c7d6; background: rgba(92,181,255,.05); }
+    .notice.success { color: #c9ffb5; border-color: rgba(174,255,91,.25); background: rgba(174,255,91,.05); }
+    .notice.error { color: #ffb4aa; border-color: rgba(255,105,91,.26); background: rgba(255,105,91,.05); }
+    .transaction { display: flex; align-items: center; gap: 14px; margin: 0 24px 24px; padding: 13px 15px; border: 1px solid rgba(174,255,91,.2); border-radius: 12px; font: 11px var(--mono); }
+    .transaction a { color: var(--green); text-decoration: none; }
+    .transaction button { margin-left: auto; border: 0; color: var(--yellow); background: transparent; cursor: pointer; }
+    footer { display: flex; justify-content: space-between; gap: 15px; padding: 24px 4px 0; color: var(--dim); font: 10px var(--mono); }
+    footer a { color: var(--muted); text-decoration: none; }
+    .hidden { display: none !important; }
+    @media (max-width: 850px) {
+      .grid { grid-template-columns: 1fr; }
+      .form-panel { border-right: 0; border-bottom: 1px solid var(--border); }
+      .workspace-head { align-items: stretch; flex-direction: column; }
+      .tabs button { flex: 1; }
+      .chain { display: none; }
+      .hero { padding: 80px 12px 60px; }
+    }
+    @media (max-width: 560px) {
+      .shell { width: calc(100% - 18px); }
+      .brand small { display: none; }
+      .hero h1 { font-size: 44px; }
+      .form-panel, .preview, .workspace-head { padding: 20px; }
+      .notice, .transaction { margin-left: 20px; margin-right: 20px; }
+      footer { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand"><span class="mark">OA</span><span><strong>Proof of Activity</strong><small>Agent execution receipts</small></span></div>
+      <div class="network"><span class="chain"><i></i>Celo mainnet</span><button id="connect" class="wallet">Connect wallet</button></div>
+    </header>
+
+    <section class="hero">
+      <div class="eyebrow">TASK → AGENT → CRITERIA → RESULT → RECEIPT</div>
+      <h1>Make AI agent work independently verifiable.</h1>
+      <p>Hash the complete execution record locally and register a public receipt on Celo mainnet.</p>
+    </section>
+
+    <section class="workspace">
+      <div class="workspace-head">
+        <div><span class="kicker">PUBLIC · TOP-LEVEL WALLET APP · CELO MAINNET</span><h2>Agent Proof Console</h2></div>
+        <div class="tabs"><button id="createTab" class="active">Create proof</button><button id="verifyTab">Verify proof</button></div>
+      </div>
+
+      <div id="createView" class="grid">
+        <section class="form-panel">
+          <label for="operationLabel">Operation label</label>
+          <input id="operationLabel" value="celo-mainnet-proof-2026-07-14" />
+          <p class="help">Unique for this wallet. Keep the exact label for verification.</p>
+
+          <label for="task">Task</label>
+          <textarea id="task">Deploy and validate Proof of Activity on Celo mainnet</textarea>
+
+          <label for="agentName">Agent / model</label>
+          <input id="agentName" value="OsaTechGPT Builder Agent" />
+
+          <label for="criteria">Acceptance criteria</label>
+          <textarea id="criteria">The production app connects a wallet, registers a receipt in the mainnet registry, and reads the receipt back publicly.</textarea>
+
+          <label for="result">Execution result</label>
+          <textarea id="result">Celo mainnet deployment and production integration completed successfully.</textarea>
+
+          <label class="file-box">
+            <input id="evidenceFile" type="file" />
+            <span class="file-icon">↥</span>
+            <span><b id="fileName">Choose optional evidence</b><small>Hashed locally — never uploaded</small></span>
+          </label>
+
+          <button id="createProof" class="primary">Connect & create agent proof <span>→</span></button>
+        </section>
+
+        <aside class="preview">
+          <div class="preview-head"><span>AGENT RECEIPT PREVIEW</span><span class="status">UNSIGNED</span></div>
+          <dl>
+            <div><dt>Executor</dt><dd id="pExecutor">Connect wallet</dd></div>
+            <div><dt>Agent</dt><dd id="pAgent"></dd></div>
+            <div><dt>Task</dt><dd id="pTask"></dd></div>
+            <div><dt>Operation ID</dt><dd id="pOperation">Calculating…</dd></div>
+            <div><dt>Execution hash</dt><dd id="pArtifact">Calculating…</dd></div>
+            <div><dt>Registry</dt><dd>0x23df5bd2abe4072ee63f93c4de817172eb9431df</dd></div>
+          </dl>
+          <p class="privacy">Only deterministic hashes and public receipt metadata go on-chain. Task text and evidence stay off-chain.</p>
+        </aside>
+      </div>
+
+      <div id="verifyView" class="grid hidden">
+        <section class="form-panel">
+          <label for="verifyExecutor">Executor address</label>
+          <input id="verifyExecutor" placeholder="0x…" />
+          <label for="verifyLabel">Original operation label</label>
+          <input id="verifyLabel" value="celo-mainnet-proof-2026-07-14" />
+          <p class="help">Use the exact label entered when the proof was created.</p>
+          <button id="verifyProof" class="primary">Verify public agent receipt <span>⌕</span></button>
+        </section>
+
+        <aside class="preview">
+          <div class="preview-head"><span>VERIFICATION RESULT</span><span id="verifyStatus" class="status">AWAITING QUERY</span></div>
+          <div id="emptyResult" class="empty"><span>◇</span><b>No query executed</b><p>Enter the executor and operation label to read the mainnet registry.</p></div>
+          <dl id="receiptResult" class="hidden">
+            <div><dt>Executor</dt><dd id="rExecutor"></dd></div>
+            <div><dt>Execution hash</dt><dd id="rHash"></dd></div>
+            <div><dt>Registered</dt><dd id="rTime"></dd></div>
+            <div><dt>Status</dt><dd id="rStatus"></dd></div>
+          </dl>
+          <a class="explorer" href="https://celoscan.io/address/0x23df5bd2abe4072ee63f93c4de817172eb9431df" target="_blank" rel="noreferrer">Inspect registry on CeloScan ↗</a>
+        </aside>
+      </div>
+
+      <div id="notice" class="notice info">Checking whether this browser exposes an EVM wallet…</div>
+      <div id="transaction" class="transaction hidden"><span>Agent proof confirmed</span><a id="transactionLink" target="_blank" rel="noreferrer"></a><button id="verifyNow">Verify now</button></div>
+    </section>
+
+    <footer><span>Proof of Activity · Celo mainnet · Registry 0x23df…9431df</span><a href="https://celoscan.io/address/0x23df5bd2abe4072ee63f93c4de817172eb9431df" target="_blank" rel="noreferrer">CeloScan ↗</a></footer>
+  </main>
+
+  <script type="module">
+    import {
+      createPublicClient,
+      custom,
+      encodeFunctionData,
+      http,
+      isAddress,
+      keccak256,
+      toBytes,
+    } from 'https://esm.sh/viem@2.55.1';
+    import { celo } from 'https://esm.sh/viem@2.55.1/chains';
+
+    const REGISTRY = '0x23df5bd2abe4072ee63f93c4de817172eb9431df';
+    const EXPLORER = 'https://celoscan.io';
+    const CHAIN_ID = '0xa4ec';
+
+    const ABI = [
+      {
+        type: 'function', name: 'registerReceipt', stateMutability: 'nonpayable',
+        inputs: [{ name: 'operationId', type: 'bytes32' }, { name: 'artifactHash', type: 'bytes32' }], outputs: [],
+      },
+      {
+        type: 'function', name: 'exists', stateMutability: 'view',
+        inputs: [{ name: 'executor', type: 'address' }, { name: 'operationId', type: 'bytes32' }], outputs: [{ name: '', type: 'bool' }],
+      },
+      {
+        type: 'function', name: 'getReceipt', stateMutability: 'view',
+        inputs: [{ name: 'executor', type: 'address' }, { name: 'operationId', type: 'bytes32' }],
+        outputs: [
+          { name: 'artifactHash', type: 'bytes32' },
+          { name: 'receiptExecutor', type: 'address' },
+          { name: 'timestamp', type: 'uint64' },
+          { name: 'status', type: 'uint8' },
+        ],
+      },
+    ];
+
+    const publicClient = createPublicClient({ chain: celo, transport: http('https://forno.celo.org/') });
+    const $ = (id) => document.getElementById(id);
+    const short = (value) => value ? `${value.slice(0,6)}…${value.slice(-4)}` : '';
+    let account = null;
+    let fileHash = null;
+    let fileName = null;
+    let previewVersion = 0;
+
+    function setNotice(message, tone = 'info') {
+      $('notice').textContent = message;
+      $('notice').className = `notice ${tone}`;
+    }
+
+    function readableError(error) {
+      const message = String(error?.shortMessage || error?.message || error || 'Unknown error');
+      if (/rejected|denied/i.test(message)) return 'The wallet request was rejected.';
+      if (/ReceiptAlreadyExists/i.test(message)) return 'This operation label already exists for this wallet.';
+      return message.split('\n')[0];
+    }
+
+    function getPayload() {
+      const operationLabel = $('operationLabel').value.trim();
+      const task = $('task').value.trim();
+      const agentName = $('agentName').value.trim();
+      const acceptanceCriteria = $('criteria').value.trim();
+      const result = $('result').value.trim();
+      if (!operationLabel || !task || !agentName || !acceptanceCriteria || (!result && !fileHash)) return null;
+      return JSON.stringify({
+        schema: 'proof-of-activity-agent-v1',
+        operationLabel,
+        task,
+        agentName,
+        acceptanceCriteria,
+        result,
+        fileName,
+        fileHash,
+      });
+    }
+
+    async function refreshPreview() {
+      const version = ++previewVersion;
+      const label = $('operationLabel').value.trim();
+      const payload = getPayload();
+      const operationId = label ? keccak256(toBytes(label)) : null;
+      const artifactHash = payload ? keccak256(toBytes(payload)) : null;
+      if (version !== previewVersion) return;
+      $('pExecutor').textContent = account || 'Connect wallet';
+      $('pAgent').textContent = $('agentName').value.trim() || 'Waiting for agent';
+      $('pTask').textContent = $('task').value.trim() || 'Waiting for task';
+      $('pOperation').textContent = operationId || 'Waiting for label';
+      $('pArtifact').textContent = artifactHash || 'Complete the execution record';
+    }
+
+    function getProvider() {
+      if (window.ethereum && typeof window.ethereum.request === 'function') return window.ethereum;
+      throw new Error('No injected wallet detected. This page must be opened directly inside MetaMask, MiniPay, or another EVM wallet browser.');
+    }
+
+    async function ensureCelo(provider) {
+      try {
+        await provider.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: CHAIN_ID }] });
+      } catch (error) {
+        if (error?.code !== 4902 && !String(error?.message || '').toLowerCase().includes('unrecognized')) throw error;
+        await provider.request({
+          method: 'wallet_addEthereumChain',
+          params: [{
+            chainId: CHAIN_ID,
+            chainName: 'Celo',
+            nativeCurrency: { name: 'CELO', symbol: 'CELO', decimals: 18 },
+            rpcUrls: ['https://forno.celo.org'],
+            blockExplorerUrls: [EXPLORER],
+          }],
+        });
+        await provider.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: CHAIN_ID }] });
+      }
+    }
+
+    async function connectWallet() {
+      const provider = getProvider();
+      const accounts = await provider.request({ method: 'eth_requestAccounts' });
+      if (!accounts?.[0]) throw new Error('Wallet did not return an account.');
+      account = accounts[0];
+      await ensureCelo(provider);
+      $('connect').textContent = short(account);
+      $('verifyExecutor').value = account;
+      await refreshPreview();
+      return provider;
+    }
+
+    $('connect').addEventListener('click', async () => {
+      try {
+        setNotice('Waiting for wallet approval…');
+        await connectWallet();
+        setNotice('Wallet connected to Celo mainnet.', 'success');
+      } catch (error) {
+        setNotice(readableError(error), 'error');
+      }
+    });
+
+    ['operationLabel','task','agentName','criteria','result'].forEach((id) => {
+      $(id).addEventListener('input', () => void refreshPreview());
+    });
+
+    $('evidenceFile').addEventListener('change', async (event) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      fileName = file.name;
+      fileHash = keccak256(new Uint8Array(await file.arrayBuffer()));
+      $('fileName').textContent = file.name;
+      await refreshPreview();
+      setNotice('Evidence file hashed locally. Its contents were not uploaded.', 'success');
+    });
+
+    $('createProof').addEventListener('click', async () => {
+      const payload = getPayload();
+      const label = $('operationLabel').value.trim();
+      if (!payload || !label) {
+        setNotice('Complete all required fields and add a result or evidence file.', 'error');
+        return;
+      }
+
+      $('createProof').disabled = true;
+      try {
+        const provider = account ? getProvider() : await connectWallet();
+        await ensureCelo(provider);
+        const operationId = keccak256(toBytes(label));
+        const artifactHash = keccak256(toBytes(payload));
+        const data = encodeFunctionData({ abi: ABI, functionName: 'registerReceipt', args: [operationId, artifactHash] });
+        setNotice('Confirm one proof transaction in your wallet…');
+        const txHash = await provider.request({
+          method: 'eth_sendTransaction',
+          params: [{ from: account, to: REGISTRY, data }],
+        });
+        $('transaction').classList.remove('hidden');
+        $('transactionLink').href = `${EXPLORER}/tx/${txHash}`;
+        $('transactionLink').textContent = `${short(txHash)} ↗`;
+        setNotice('Transaction submitted. Waiting for Celo mainnet confirmation…');
+        const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
+        if (receipt.status !== 'success') throw new Error('The proof transaction reverted.');
+        $('verifyExecutor').value = account;
+        $('verifyLabel').value = label;
+        setNotice('Agent execution proof registered on Celo mainnet.', 'success');
+      } catch (error) {
+        setNotice(readableError(error), 'error');
+      } finally {
+        $('createProof').disabled = false;
+      }
+    });
+
+    $('verifyProof').addEventListener('click', async () => {
+      const executor = $('verifyExecutor').value.trim();
+      const label = $('verifyLabel').value.trim();
+      if (!isAddress(executor) || !label) {
+        setNotice('Enter a valid executor address and the exact operation label.', 'error');
+        return;
+      }
+
+      $('verifyProof').disabled = true;
+      try {
+        setNotice('Reading the public Celo mainnet registry…');
+        const operationId = keccak256(toBytes(label));
+        const exists = await publicClient.readContract({ address: REGISTRY, abi: ABI, functionName: 'exists', args: [executor, operationId] });
+        if (!exists) {
+          $('emptyResult').classList.remove('hidden');
+          $('receiptResult').classList.add('hidden');
+          $('verifyStatus').textContent = 'NOT FOUND';
+          setNotice('No receipt exists for this executor and operation label.', 'error');
+          return;
+        }
+        const [artifactHash, receiptExecutor, timestamp, status] = await publicClient.readContract({ address: REGISTRY, abi: ABI, functionName: 'getReceipt', args: [executor, operationId] });
+        $('emptyResult').classList.add('hidden');
+        $('receiptResult').classList.remove('hidden');
+        $('rExecutor').textContent = receiptExecutor;
+        $('rHash').textContent = artifactHash;
+        $('rTime').textContent = new Date(Number(timestamp) * 1000).toLocaleString();
+        $('rStatus').textContent = status === 0 ? 'Active' : 'Revoked';
+        $('verifyStatus').textContent = status === 0 ? 'ACTIVE' : 'REVOKED';
+        setNotice('Agent receipt found and decoded from the registry.', 'success');
+      } catch (error) {
+        setNotice(readableError(error), 'error');
+      } finally {
+        $('verifyProof').disabled = false;
+      }
+    });
+
+    function showView(view) {
+      const create = view === 'create';
+      $('createView').classList.toggle('hidden', !create);
+      $('verifyView').classList.toggle('hidden', create);
+      $('createTab').classList.toggle('active', create);
+      $('verifyTab').classList.toggle('active', !create);
+    }
+
+    $('createTab').addEventListener('click', () => showView('create'));
+    $('verifyTab').addEventListener('click', () => showView('verify'));
+    $('verifyNow').addEventListener('click', () => showView('verify'));
+
+    window.addEventListener('load', () => {
+      if (window.ethereum && typeof window.ethereum.request === 'function') {
+        setNotice('Wallet provider detected. Tap Connect wallet.', 'success');
+      } else {
+        setNotice('No injected wallet detected. Open this exact page directly inside MetaMask or MiniPay.', 'error');
+      }
+      void refreshPreview();
+    });
+  </script>
+</body>
+</html>

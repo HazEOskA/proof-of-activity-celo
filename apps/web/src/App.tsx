@@ -30,7 +30,7 @@ function App() {
   const [task, setTask] = useState('Build and validate the Proof of Activity MiniPay MVP')
   const [agentName, setAgentName] = useState('OsaTechGPT Builder Agent')
   const [acceptanceCriteria, setAcceptanceCriteria] = useState(
-    'Wallet connects, receipt is registered on Celo Sepolia, and the proof can be read back publicly.',
+    'Wallet connects, receipt is registered on Celo mainnet, and the proof can be read back publicly.',
   )
   const [resultText, setResultText] = useState('')
   const [fileName, setFileName] = useState('')
@@ -52,13 +52,14 @@ function App() {
       .then((connectedAccount) => {
         setAccount(connectedAccount)
         setVerifyExecutor(connectedAccount)
-        setNotice({ tone: 'success', message: 'MiniPay connected on Celo Sepolia.' })
+        setNotice({ tone: 'success', message: 'MiniPay connected on Celo mainnet.' })
       })
       .catch((error: unknown) => {
         miniPayAutoConnectStarted.current = false
         setNotice({ tone: 'error', message: readableError(error) })
       })
   }, [miniPay])
+
   const operationId = useMemo(
     () => (operationLabel.trim() ? operationIdFromLabel(operationLabel) : null),
     [operationLabel],
@@ -99,7 +100,7 @@ function App() {
       setVerifyExecutor(connectedAccount)
       setNotice({
         tone: 'success',
-        message: `${isMiniPayWallet() ? 'MiniPay' : 'Wallet'} connected to Celo Sepolia.`,
+        message: `${isMiniPayWallet() ? 'MiniPay' : 'Wallet'} connected to Celo mainnet.`,
       })
       return connectedAccount
     } catch (error) {
@@ -171,7 +172,7 @@ function App() {
       setVerifyLabel(operationLabel)
       setNotice({
         tone: 'success',
-        message: 'Agent execution proof registered on Celo Sepolia.',
+        message: 'Agent execution proof registered on Celo mainnet.',
       })
     } catch (error) {
       setNotice({ tone: 'error', message: readableError(error) })
@@ -195,7 +196,7 @@ function App() {
     }
 
     setBusy(true)
-    setNotice({ tone: 'info', message: 'Reading the public agent receipt from Celo Sepolia…' })
+    setNotice({ tone: 'info', message: 'Reading the public agent receipt from Celo mainnet…' })
 
     try {
       const receipt = await readReceipt(verifyExecutor, operationIdFromLabel(verifyLabel))
@@ -232,7 +233,7 @@ function App() {
 
         <div className="network-cluster">
           <span className="network-pill">
-            <span className="network-dot" /> {miniPay ? 'MiniPay · Celo Sepolia' : 'Celo Sepolia'}
+            <span className="network-dot" /> {miniPay ? 'MiniPay · Celo mainnet' : 'Celo mainnet'}
           </span>
           {miniPay ? (
             account && <span className="network-pill">{compactAddress(account)}</span>
@@ -263,7 +264,7 @@ function App() {
       <section className="workspace">
         <div className="workspace-heading">
           <div>
-            <span className="section-kicker">MINIPAY-READY TESTNET MVP</span>
+            <span className="section-kicker">MINIPAY-READY · LIVE ON CELO MAINNET</span>
             <h2>Agent Proof Console</h2>
           </div>
           <div className="view-tabs" role="tablist" aria-label="Receipt actions">
@@ -503,7 +504,7 @@ function App() {
                     target="_blank"
                     rel="noreferrer"
                   >
-                    Inspect registry on Blockscout ↗
+                    Inspect registry on CeloScan ↗
                   </a>
                 </>
               ) : (
@@ -543,7 +544,7 @@ function App() {
       </section>
 
       <footer>
-        <span>Proof of Activity for AI Agents · MiniPay-ready · Celo Sepolia</span>
+        <span>Proof of Activity for AI Agents · MiniPay-ready · Celo mainnet</span>
         <a
           href={`${EXPLORER_URL}/address/${REGISTRY_ADDRESS}`}
           target="_blank"

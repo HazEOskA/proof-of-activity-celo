@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Proof of Activity logo</title>
+  <desc id="desc">Dark square logo with OA monogram and Celo-inspired yellow green accents</desc>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffe34f"/>
+      <stop offset="1" stop-color="#aeff5b"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="104" fill="#07090d"/>
+  <rect x="36" y="36" width="440" height="440" rx="84" fill="none" stroke="#27311f" stroke-width="8"/>
+  <path d="M152 154h88c45 0 78 28 78 72s-33 72-78 72h-40v60h-48V154zm48 42v60h35c22 0 35-11 35-30s-13-30-35-30h-35z" fill="url(#g)"/>
+  <path d="M322 154h48l70 204h-51l-13-42h-62l-13 42h-50l71-204zm23 63-19 61h38l-19-61z" fill="#f5f7f2"/>
+  <circle cx="256" cy="402" r="14" fill="#aeff5b"/>
+  <path d="M192 402h49M271 402h49" stroke="#ffe34f" stroke-width="8" stroke-linecap="round"/>
+</svg>

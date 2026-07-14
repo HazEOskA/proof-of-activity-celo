@@ -10,11 +10,11 @@ import {
   toBytes,
 } from 'viem'
 import type { Address, Hex } from 'viem'
-import { celoSepolia } from 'viem/chains'
+import { celo } from 'viem/chains'
 
-export const CELO_SEPOLIA_CHAIN_ID = celoSepolia.id
-export const REGISTRY_ADDRESS = '0x60F5C6257984bFCF678802529451E30d424df9EE' as const
-export const EXPLORER_URL = 'https://celo-sepolia.blockscout.com'
+export const CELO_MAINNET_CHAIN_ID = celo.id
+export const REGISTRY_ADDRESS = '0x23df5bd2abe4072ee63f93c4de817172eb9431df' as const
+export const EXPLORER_URL = 'https://celoscan.io'
 
 export const registryAbi = [
   {
@@ -55,8 +55,8 @@ export const registryAbi = [
 ] as const
 
 export const publicClient = createPublicClient({
-  chain: celoSepolia,
-  transport: http('https://forno.celo-sepolia.celo-testnet.org/'),
+  chain: celo,
+  transport: http('https://forno.celo.org/'),
 })
 
 type MiniPayProvider = NonNullable<typeof window.ethereum> & {
@@ -115,7 +115,7 @@ export async function connectInjectedWallet(): Promise<Address> {
   }
 
   const walletClient = createWalletClient({
-    chain: celoSepolia,
+    chain: celo,
     transport: custom(window.ethereum),
   })
 
@@ -139,10 +139,10 @@ export async function connectInjectedWallet(): Promise<Address> {
   }
 
   try {
-    await walletClient.switchChain({ id: celoSepolia.id })
+    await walletClient.switchChain({ id: celo.id })
   } catch {
-    await walletClient.addChain({ chain: celoSepolia })
-    await walletClient.switchChain({ id: celoSepolia.id })
+    await walletClient.addChain({ chain: celo })
+    await walletClient.switchChain({ id: celo.id })
   }
 
   return account
@@ -171,7 +171,7 @@ export async function registerReceipt(
 
   const walletClient = createWalletClient({
     account,
-    chain: celoSepolia,
+    chain: celo,
     transport: custom(window.ethereum),
   })
 
